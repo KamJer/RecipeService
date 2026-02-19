@@ -10,8 +10,6 @@ import lombok.Getter;
 public class IngredientDto {
 
     private String name;
-
     private Double quantity;
-
     private String unit;
 }

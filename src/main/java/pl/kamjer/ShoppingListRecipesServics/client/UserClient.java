@@ -1,7 +1,7 @@
 package pl.kamjer.ShoppingListRecipesServics.client;
 
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.val;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import pl.kamjer.ShoppingListRecipesServics.model.dto.UserDto;

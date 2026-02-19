@@ -2,6 +2,8 @@ package pl.kamjer.ShoppingListRecipesServics.Controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.kamjer.ShoppingListRecipesServics.model.Recipe;
@@ -10,9 +12,7 @@ import pl.kamjer.ShoppingListRecipesServics.model.dto.RecipeDto;
 import pl.kamjer.ShoppingListRecipesServics.model.dto.RecipeRequestDto;
 import pl.kamjer.ShoppingListRecipesServics.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipesServics.services.RecipeService;
-import pl.kamjer.ShoppingListRecipesServics.services.RecipeUserService;
 
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 public class RecipeController {
 
     private RecipeService recipeService;
-    private RecipeUserService recipeUserService;
     private ObjectMapper objectMapper;
 
     @PutMapping
@@ -37,19 +36,8 @@ public class RecipeController {
     }
 
     @DeleteMapping
-    public ResponseEntity<Boolean> deleteRecipe(@RequestBody Long id) {
-        recipeService.deleteRecipe(id);
-        return ResponseEntity.ok(true);
-    }
-
-    @PutMapping(path = "/for_user/{recipeId}")
-    public ResponseEntity<Boolean> putRecipeForUser(@PathVariable Long recipeId) throws IllegalAccessException {
-        recipeUserService.insertRecipeForUser(recipeId);
-        return ResponseEntity.ok(true);
-    }
-    @DeleteMapping(path = "/for_user/{recipeId}")
-    public ResponseEntity<Boolean> deleteRecipeForUser(@PathVariable Long recipeId) {
-        recipeUserService.deleteRecipeForUser(recipeId);
+    public ResponseEntity<Boolean> deleteRecipe(@PathVariable Long recipeId) {
+        recipeService.deleteRecipe(recipeId);
         return ResponseEntity.ok(true);
     }
 
@@ -58,28 +46,33 @@ public class RecipeController {
         return ResponseEntity.ok(objectMapper.convertValue(recipeService.getRecipeById(id), RecipeDto.class));
     }
 
-    @GetMapping(path = "/products")
-    public ResponseEntity<List<RecipeDto>> getRecipeByProducts(@RequestBody RecipeRequestDto recipeRequestDto) {
-        return ResponseEntity.ok(recipeService.getRecipeByProducts(recipeRequestDto.getProducts(), recipeRequestDto.getMaxMissing()).stream().map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)).toList());
+    @PostMapping(path = "/products")
+    public ResponseEntity<Page<RecipeDto>> getRecipeByQuery(@RequestBody RecipeRequestDto recipeRequestDto, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipeByProducts(recipeRequestDto.getProducts(), recipeRequestDto.getMaxMissing(), pageable).map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)));
     }
 
     @GetMapping(path = "/name/{query}")
-    public ResponseEntity<List<RecipeDto>> getRecipeByProducts(@PathVariable String query) {
-        return ResponseEntity.ok(recipeService.getRecipeByQuery(query).stream().map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)).toList());
+    public ResponseEntity<Page<RecipeDto>> getRecipeByQuery(@PathVariable String query, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipeByQuery(query, pageable).map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)));
     }
 
-    @GetMapping(path = "/tag")
-    public ResponseEntity<List<RecipeDto>> getRecipeByTags(@RequestBody Set<TagDto> tags) {
-        return ResponseEntity.ok(recipeService.getRecipeByTags(tags.stream().map(tagDto -> objectMapper.convertValue(tagDto, Tag.class)).collect(Collectors.toSet())).stream().map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)).toList());
+    @PostMapping(path = "/tag")
+    public ResponseEntity<Page<RecipeDto>> getRecipeByTags(@RequestBody Set<TagDto> tags, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipeByTags(tags.stream().map(tagDto -> objectMapper.convertValue(tagDto, Tag.class)).collect(Collectors.toSet()), pageable).map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)));
     }
 
-    @GetMapping(path = "/user/{userName}")
-    public ResponseEntity<List<RecipeDto>> getRecipeForUser(@PathVariable String userName) {
-        return ResponseEntity.ok(recipeUserService.getRecipeByUser(userName).stream().map(recipeUser -> objectMapper.convertValue(recipeUser.getRecipe(), RecipeDto.class)).toList());
+    @GetMapping(path = "/user")
+    public ResponseEntity<Page<RecipeDto>> getRecipeForUser(Pageable pageable) throws IllegalAccessException {
+        return ResponseEntity.ok(recipeService.getRecipeByUser(pageable).map(recipeUser -> objectMapper.convertValue(recipeUser, RecipeDto.class)));
     }
 
-    @GetMapping(path = "/tag/required")
-    public ResponseEntity<List<RecipeDto>> getRecipeByTagsRequired(@RequestBody Set<TagDto> tags) {
-        return ResponseEntity.ok(recipeService.getRecipeByTagsRequired(tags.stream().map(tagDto -> objectMapper.convertValue(tagDto, Tag.class)).collect(Collectors.toSet())).stream().map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)).toList());
+    @PostMapping(path = "/tag/required")
+    public ResponseEntity<Page<RecipeDto>> getRecipeByTagsRequired(@RequestBody Set<TagDto> tags, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipeByTagsRequired(tags.stream().map(tagDto -> objectMapper.convertValue(tagDto, Tag.class)).collect(Collectors.toSet()), pageable).map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)));
+    }
+
+    @GetMapping()
+    public ResponseEntity<Page<RecipeDto>> getAllRecipes(Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getAllRecipes(pageable).map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)));
     }
 }

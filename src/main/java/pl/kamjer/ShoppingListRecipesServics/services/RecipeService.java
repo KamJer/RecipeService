@@ -2,12 +2,13 @@ package pl.kamjer.ShoppingListRecipesServics.services;
 
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import pl.kamjer.ShoppingListRecipesServics.model.*;
 import pl.kamjer.ShoppingListRecipesServics.repository.*;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Service
@@ -18,7 +19,6 @@ public class RecipeService {
     private IngredientRepository ingredientRepository;
     private StepRepository stepRepository;
     private TagRepository tagRepository;
-    private RecipeUserRepository recipeUserRepository;
     private UserService userService;
 
     @Transactional
@@ -40,7 +40,7 @@ public class RecipeService {
         Recipe recipeToUpdate = recipeRepository.findById(recipe.getRecipeId()).orElseThrow(NoSuchElementException::new);
         User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
         if (!recipeToUpdate.getUserName().equals(user.getUserName())) {
-            throw new IllegalAccessException("This recipe does not belong to this user: %s, you can not update it".formatted(user.getUserName()));
+            throw new IllegalAccessException("This recipe does not belong to this user: %s, you can not update it!".formatted(user.getUserName()));
         }
         validateTags(recipe);
         Map<Boolean, List<Ingredient>> partIngredientList = recipe.getIngredients().stream()
@@ -82,7 +82,12 @@ public class RecipeService {
 
     @Transactional
     public void deleteRecipe(Long id) {
-        recipeRepository.deleteById(id);
+        userService.getUserFromAuth().ifPresent(user -> {
+            Recipe recipeToDelete = recipeRepository.findById(id).orElseThrow(NoSuchElementException::new);
+            if (user.getUserName().equals(recipeToDelete.getUserName())) {
+                recipeRepository.deleteById(id);
+            }
+        });
     }
 
     @Transactional
@@ -93,41 +98,42 @@ public class RecipeService {
     }
 
     @Transactional
-    public List<Recipe> getRecipeByProducts(List<String> products, int maxMissing) {
+    public Page<Recipe> getRecipeByProducts(List<String> products, int maxMissing, Pageable pageable) {
         return userService.getUserFromAuth()
-                .map(user -> recipeRepository.findCookableRecipes(products, maxMissing, user.getUserName()))
-                .orElseGet(() -> recipeRepository.findCookableRecipes(products, maxMissing, null));
+                .map(user -> recipeRepository.findCookableRecipes(products, maxMissing, user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findCookableRecipes(products, maxMissing, null, pageable));
     }
 
     @Transactional
-    public List<Recipe> getRecipeByQuery(String query) {
+    public Page<Recipe> getRecipeByQuery(String query, Pageable pageable) {
         return userService.getUserFromAuth()
-                .map(user -> recipeRepository.searchByNameBoolean(query, user.getUserName()))
-                .orElseGet(() -> recipeRepository.searchByNameBoolean(query, null));
+                .map(user -> recipeRepository.searchByNameBoolean(query, user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.searchByNameBoolean(query, null, pageable));
     }
 
     @Transactional
-    public List<Recipe> getRecipeByTags(Set<Tag> tags) {
+    public Page<Recipe> getRecipeByTags(Set<Tag> tags, Pageable pageable) {
         return userService.getUserFromAuth()
-                .map(user -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), user.getUserName()))
-                .orElseGet(() -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), null));
+                .map(user -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), null, pageable));
     }
 
     @Transactional
-    public List<Recipe> getRecipeByTagsRequired(Set<Tag> tags) {
+    public Page<Recipe> getRecipeByTagsRequired(Set<Tag> tags, Pageable pageable) {
         return userService.getUserFromAuth()
-                .map(user -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), user.getUserName()))
-                .orElseGet(() -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), null));
+                .map(user -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), null, pageable));
     }
 
-    private Set<Tag> findMissingTags(Set<Tag> tagsToCheck) {
-        Set<Tag> normalized = tagsToCheck.stream()
-                .map(t -> Tag.builder().tag(t
-                        .getTag().trim().toLowerCase(Locale.ROOT)).build())
-                .collect(Collectors.toSet());
-        Set<Tag> existing = tagRepository.findAllByTagIn(normalized.stream().map(Tag::getTag).collect(Collectors.toSet()));
-        normalized.removeAll(existing);
-        return normalized;
+    @Transactional
+    public Page<Recipe> getAllRecipes(Pageable pageable) {
+        return recipeRepository.findAll(pageable);
+    }
+
+    @Transactional
+    public Page<Recipe> getRecipeByUser(Pageable pageable) throws IllegalAccessException {
+        User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
+        return recipeRepository.findByUserName(user.getUserName(), pageable);
     }
 
     private void validateTags(Recipe recipe) {
@@ -140,4 +146,13 @@ public class RecipeService {
         }
     }
 
+    private Set<Tag> findMissingTags(Set<Tag> tagsToCheck) {
+        Set<Tag> normalized = tagsToCheck.stream()
+                .map(t -> Tag.builder().tag(t
+                        .getTag().trim().toLowerCase(Locale.ROOT)).build())
+                .collect(Collectors.toSet());
+        Set<Tag> existing = tagRepository.findAllByTagIn(normalized.stream().map(Tag::getTag).collect(Collectors.toSet()));
+        normalized.removeAll(existing);
+        return normalized;
+    }
 }
