@@ -58,6 +58,34 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
             Pageable pageable
     );
 
+    @Query(value = """
+        SELECT r.*
+        FROM recipe r
+        JOIN ingredient i ON i.recipe_id = r.recipe_id
+        WHERE i.name IN (:products)
+          AND (r.published = true OR (:userName IS NOT NULL AND r.user_name = :userName))
+        GROUP BY r.recipe_id
+        HAVING COUNT(DISTINCT i.name) = :#{#products.size()}
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM (
+            SELECT r.recipe_id
+            FROM recipe r
+            JOIN ingredient i ON i.recipe_id = r.recipe_id
+            WHERE i.name IN (:products)
+              AND (r.published = true OR (:userName IS NOT NULL AND r.user_name = :userName))
+            GROUP BY r.recipe_id
+            HAVING COUNT(DISTINCT i.name) = :#{#products.size()}
+        ) AS count_query
+        """,
+            nativeQuery = true)
+    Page<Recipe> findRecipesContainingAllIngredients(
+            @Param("products") List<String> products,
+            @Param("userName") String userName,
+            Pageable pageable
+    );
+
+
     @Query(
             value = """
                     SELECT *

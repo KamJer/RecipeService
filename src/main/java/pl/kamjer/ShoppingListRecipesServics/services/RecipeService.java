@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import pl.kamjer.ShoppingListRecipesServics.exceptions.WrongRecipeElementException;
 import pl.kamjer.ShoppingListRecipesServics.model.*;
 import pl.kamjer.ShoppingListRecipesServics.repository.*;
 
@@ -22,7 +23,7 @@ public class RecipeService {
     private UserService userService;
 
     @Transactional
-    public Recipe insertRecipe(Recipe recipe) throws IllegalAccessException {
+    public Recipe insertRecipe(Recipe recipe) throws IllegalAccessException, WrongRecipeElementException {
         User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
         recipe.getIngredients().forEach(ingredient -> ingredient.setRecipe(recipe));
         recipe.getSteps().forEach(step -> step.setRecipe(recipe));
@@ -36,7 +37,7 @@ public class RecipeService {
     }
 
     @Transactional
-    public void updateRecipe(Recipe recipe) throws IllegalAccessException {
+    public void updateRecipe(Recipe recipe) throws IllegalAccessException, WrongRecipeElementException {
         Recipe recipeToUpdate = recipeRepository.findById(recipe.getRecipeId()).orElseThrow(NoSuchElementException::new);
         User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
         if (!recipeToUpdate.getUserName().equals(user.getUserName())) {
@@ -50,7 +51,7 @@ public class RecipeService {
         List<Ingredient> ingredientsToUpdate = new java.util.ArrayList<>(partIngredientList.get(false).stream().map(ingredient -> {
             Ingredient ingredientToUpdate = ingredientRepository.findById(ingredient.getIngredientId()).orElseThrow(NoSuchElementException::new);
             if (!Objects.equals(ingredientToUpdate.getRecipe().getRecipeId(), recipeToUpdate.getRecipeId())) {
-                throw new IllegalStateException("Wrong ingredient, it does not belong to this recipe");
+                throw new WrongRecipeElementException("Wrong ingredient, it does not belong to this recipe");
             }
             ingredientToUpdate.setUnit(ingredient.getUnit());
             ingredientToUpdate.setQuantity(ingredient.getQuantity());
@@ -66,7 +67,7 @@ public class RecipeService {
         List<Step> stepsToUpdate = new java.util.ArrayList<>(partStepList.get(false).stream().map(step -> {
             Step stepToUpdate = stepRepository.findById(step.getStepId()).orElseThrow(NoSuchElementException::new);
             if (!Objects.equals(stepToUpdate.getRecipe().getRecipeId(), recipeToUpdate.getRecipeId())) {
-                throw new IllegalStateException("Wrong step, it does not belong to this recipe");
+                throw new WrongRecipeElementException("Wrong step, it does not belong to this recipe");
             }
             stepToUpdate.setStepNumber(step.getStepNumber());
             stepToUpdate.setInstruction(step.getInstruction());
@@ -105,6 +106,13 @@ public class RecipeService {
     }
 
     @Transactional
+    public Page<Recipe> getRecipeByProductsRequired(List<String> products, Pageable pageable) {
+        return userService.getUserFromAuth()
+                .map(user -> recipeRepository.findRecipesContainingAllIngredients(products, user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findRecipesContainingAllIngredients(products, null, pageable));
+    }
+
+    @Transactional
     public Page<Recipe> getRecipeByQuery(String query, Pageable pageable) {
         return userService.getUserFromAuth()
                 .map(user -> recipeRepository.searchByNameBoolean(query, user.getUserName(), pageable))
@@ -136,13 +144,13 @@ public class RecipeService {
         return recipeRepository.findByUserName(user.getUserName(), pageable);
     }
 
-    private void validateTags(Recipe recipe) {
+    private void validateTags(Recipe recipe) throws WrongRecipeElementException {
         Set<Tag> missingTags = findMissingTags(Optional.ofNullable(recipe.getTags()).orElseGet(HashSet::new));
         //        TODO: make proper validation
         if (!missingTags.isEmpty()) {
             StringBuilder errorMessage = new StringBuilder("Passed tags don't exist, insert correct tags").append("\n");
             missingTags.forEach(tag -> errorMessage.append(tag.getTag()).append(" "));
-            throw new IllegalStateException(errorMessage.toString());
+            throw new WrongRecipeElementException(errorMessage.toString());
         }
     }
 
