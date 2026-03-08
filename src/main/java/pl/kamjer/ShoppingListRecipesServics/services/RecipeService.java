@@ -79,12 +79,14 @@ public class RecipeService {
 
         recipeToUpdate.setDescription(recipe.getDescription());
         recipeToUpdate.setName(recipe.getName());
+        recipeToUpdate.setPublished(recipe.getPublished());
+        recipeToUpdate.setTags(recipe.getTags());
     }
 
     @Transactional
     public void deleteRecipe(Long id) {
         userService.getUserFromAuth().ifPresent(user -> {
-            Recipe recipeToDelete = recipeRepository.findById(id).orElseThrow(NoSuchElementException::new);
+            Recipe recipeToDelete = recipeRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Such recipe does not exists"));
             if (user.getUserName().equals(recipeToDelete.getUserName())) {
                 recipeRepository.deleteById(id);
             }
@@ -92,7 +94,7 @@ public class RecipeService {
     }
 
     @Transactional
-    public Recipe getRecipeById(Long id) throws IllegalAccessException {
+    public Recipe getRecipeById(Long id) throws NoSuchElementException {
         return userService.getUserFromAuth()
                 .map(user -> recipeRepository.findByIdCustom(id, user.getUserName()).orElseThrow(NoSuchElementException::new))
                 .orElseGet(() -> recipeRepository.findByIdCustom(id, null).orElse(null));
@@ -135,7 +137,9 @@ public class RecipeService {
 
     @Transactional
     public Page<Recipe> getAllRecipes(Pageable pageable) {
-        return recipeRepository.findAll(pageable);
+        return userService.getUserFromAuth()
+                .map(user -> recipeRepository.findAllRecipe(user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findAllRecipe(null, pageable));
     }
 
     @Transactional

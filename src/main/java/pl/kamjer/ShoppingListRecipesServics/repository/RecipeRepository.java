@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import pl.kamjer.ShoppingListRecipesServics.model.Recipe;
-import reactor.util.annotation.NonNullApi;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +19,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
             SELECT r
             FROM Recipe r 
             WHERE r.recipeId = :recipeId 
-            AND (r.published = true OR (:userName IS NOT NULL AND r.userName = :userName))          
+            AND (r.published = true OR (:userName IS NOT NULL AND r.userName = :userName))      
             """)
     Optional<Recipe> findByIdCustom(
             Long recipeId,
@@ -59,25 +58,25 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     );
 
     @Query(value = """
-        SELECT r.*
-        FROM recipe r
-        JOIN ingredient i ON i.recipe_id = r.recipe_id
-        WHERE i.name IN (:products)
-          AND (r.published = true OR (:userName IS NOT NULL AND r.user_name = :userName))
-        GROUP BY r.recipe_id
-        HAVING COUNT(DISTINCT i.name) = :#{#products.size()}
-        """,
-            countQuery = """
-        SELECT COUNT(*) FROM (
-            SELECT r.recipe_id
+            SELECT r.*
             FROM recipe r
             JOIN ingredient i ON i.recipe_id = r.recipe_id
             WHERE i.name IN (:products)
               AND (r.published = true OR (:userName IS NOT NULL AND r.user_name = :userName))
             GROUP BY r.recipe_id
             HAVING COUNT(DISTINCT i.name) = :#{#products.size()}
-        ) AS count_query
-        """,
+            """,
+            countQuery = """
+                    SELECT COUNT(*) FROM (
+                        SELECT r.recipe_id
+                        FROM recipe r
+                        JOIN ingredient i ON i.recipe_id = r.recipe_id
+                        WHERE i.name IN (:products)
+                          AND (r.published = true OR (:userName IS NOT NULL AND r.user_name = :userName))
+                        GROUP BY r.recipe_id
+                        HAVING COUNT(DISTINCT i.name) = :#{#products.size()}
+                    ) AS count_query
+                    """,
             nativeQuery = true)
     Page<Recipe> findRecipesContainingAllIngredients(
             @Param("products") List<String> products,
@@ -147,4 +146,12 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     );
 
     Page<Recipe> findByUserName(String userName, Pageable pageable);
+
+    @Query(value = """
+                SELECT r
+                FROM Recipe r
+                WHERE r.published = true
+                OR (:userName IS NOT NULL AND r.userName = :userName)
+            """)
+    Page<Recipe> findAllRecipe(@Param("userName") String userName, Pageable pageable);
 }

@@ -13,6 +13,7 @@ import pl.kamjer.ShoppingListRecipesServics.model.dto.RecipeDto;
 import pl.kamjer.ShoppingListRecipesServics.model.dto.RecipeRequestDto;
 import pl.kamjer.ShoppingListRecipesServics.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipesServics.services.RecipeService;
+import pl.kamjer.ShoppingListRecipesServics.services.TagService;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,7 +37,7 @@ public class RecipeController {
         return ResponseEntity.ok(true);
     }
 
-    @DeleteMapping
+    @DeleteMapping(path = "/{recipeId}")
     public ResponseEntity<Boolean> deleteRecipe(@PathVariable Long recipeId) {
         recipeService.deleteRecipe(recipeId);
         return ResponseEntity.ok(true);
@@ -81,4 +82,5 @@ public class RecipeController {
     public ResponseEntity<Page<RecipeDto>> getAllRecipes(Pageable pageable) {
         return ResponseEntity.ok(recipeService.getAllRecipes(pageable).map(recipe -> objectMapper.convertValue(recipe, RecipeDto.class)));
     }
+
 }
