@@ -1,10 +1,16 @@
 package pl.kamjer.ShoppingListRecipesServics.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import pl.kamjer.ShoppingListRecipesServics.client.UserClient;
 import pl.kamjer.ShoppingListRecipesServics.exceptions.WrongRecipeElementException;
 import pl.kamjer.ShoppingListRecipesServics.model.*;
 import pl.kamjer.ShoppingListRecipesServics.repository.*;
@@ -12,19 +18,26 @@ import pl.kamjer.ShoppingListRecipesServics.repository.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service
-@AllArgsConstructor
-public class RecipeService {
 
-    private RecipeRepository recipeRepository;
-    private IngredientRepository ingredientRepository;
-    private StepRepository stepRepository;
-    private TagRepository tagRepository;
-    private UserService userService;
+@Service
+public class RecipeService extends CustomService{
+
+    private final RecipeRepository recipeRepository;
+    private final IngredientRepository ingredientRepository;
+    private final StepRepository stepRepository;
+    private final TagRepository tagRepository;
+
+    public RecipeService(UserClient secClient, ObjectMapper objectMapper, RecipeRepository recipeRepository, IngredientRepository ingredientRepository, StepRepository stepRepository, TagRepository tagRepository) {
+        super(secClient, objectMapper);
+        this.recipeRepository = recipeRepository;
+        this.ingredientRepository = ingredientRepository;
+        this.stepRepository = stepRepository;
+        this.tagRepository = tagRepository;
+    }
 
     @Transactional
-    public Recipe insertRecipe(Recipe recipe) throws IllegalAccessException, WrongRecipeElementException {
-        User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
+    public Recipe insertRecipe(Recipe recipe)throws WrongRecipeElementException {
+        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException(""));
         recipe.getIngredients().forEach(ingredient -> ingredient.setRecipe(recipe));
         recipe.getSteps().forEach(step -> step.setRecipe(recipe));
         recipe.setUserName(user.getUserName());
@@ -39,7 +52,7 @@ public class RecipeService {
     @Transactional
     public void updateRecipe(Recipe recipe) throws IllegalAccessException, WrongRecipeElementException {
         Recipe recipeToUpdate = recipeRepository.findById(recipe.getRecipeId()).orElseThrow(NoSuchElementException::new);
-        User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
+        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException(""));
         if (!recipeToUpdate.getUserName().equals(user.getUserName())) {
             throw new IllegalAccessException("This recipe does not belong to this user: %s, you can not update it!".formatted(user.getUserName()));
         }
@@ -85,7 +98,7 @@ public class RecipeService {
 
     @Transactional
     public void deleteRecipe(Long id) {
-        userService.getUserFromAuth().ifPresent(user -> {
+        Optional.ofNullable(getUserFromAuth()).ifPresent(user -> {
             Recipe recipeToDelete = recipeRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Such recipe does not exists"));
             if (user.getUserName().equals(recipeToDelete.getUserName())) {
                 recipeRepository.deleteById(id);
@@ -95,56 +108,56 @@ public class RecipeService {
 
     @Transactional
     public Recipe getRecipeById(Long id) throws NoSuchElementException {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByIdCustom(id, user.getUserName()).orElseThrow(NoSuchElementException::new))
                 .orElseGet(() -> recipeRepository.findByIdCustom(id, null).orElse(null));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByProducts(List<String> products, int maxMissing, Pageable pageable) {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findCookableRecipes(products, maxMissing, user.getUserName(), pageable))
                 .orElseGet(() -> recipeRepository.findCookableRecipes(products, maxMissing, null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByProductsRequired(List<String> products, Pageable pageable) {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findRecipesContainingAllIngredients(products, user.getUserName(), pageable))
                 .orElseGet(() -> recipeRepository.findRecipesContainingAllIngredients(products, null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByQuery(String query, Pageable pageable) {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.searchByNameBoolean(query, user.getUserName(), pageable))
                 .orElseGet(() -> recipeRepository.searchByNameBoolean(query, null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByTags(Set<Tag> tags, Pageable pageable) {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), user.getUserName(), pageable))
                 .orElseGet(() -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByTagsRequired(Set<Tag> tags, Pageable pageable) {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), user.getUserName(), pageable))
                 .orElseGet(() -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getAllRecipes(Pageable pageable) {
-        return userService.getUserFromAuth()
+        return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findAllRecipe(user.getUserName(), pageable))
                 .orElseGet(() -> recipeRepository.findAllRecipe(null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByUser(Pageable pageable) throws IllegalAccessException {
-        User user = userService.getUserFromAuth().orElseThrow(IllegalAccessException::new);
+        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(IllegalAccessException::new);
         return recipeRepository.findByUserName(user.getUserName(), pageable);
     }
 

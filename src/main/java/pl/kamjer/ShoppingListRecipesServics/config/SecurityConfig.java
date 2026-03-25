@@ -9,7 +9,9 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -18,17 +20,23 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @AllArgsConstructor
 public class SecurityConfig {
 
+    private JwtAuthenticationFilter jwtAuthenticationFiler;
+    private JwtAuthenticationProvider jwtAuthenticationProvider;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
+        http.csrf(AbstractHttpConfigurer::disable)
+                .authenticationProvider(jwtAuthenticationProvider)
+                .addFilterBefore(jwtAuthenticationFiler, UsernamePasswordAuthenticationFilter.class)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.GET, "/recipe/user/*").authenticated()
+                        auth.requestMatchers(HttpMethod.GET, "/recipe/user").authenticated()
                                 .requestMatchers(HttpMethod.GET).permitAll()
                                 .anyRequest().authenticated()
 
-                )
-                .httpBasic(withDefaults());
+                );
         return http.build();
     }
 

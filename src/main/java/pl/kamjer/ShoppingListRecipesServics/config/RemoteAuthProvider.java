@@ -23,9 +23,8 @@ public class RemoteAuthProvider implements AuthenticationProvider {
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         String username = authentication.getName();
-        String password = authentication.getCredentials().toString();
 
-        if (!userClient.logUser(new UserRequestDto(username, password))) {
+        if (!userClient.logUser(new UserRequestDto(username, null))) {
             throw new BadCredentialsException("Invalid credentials");
         }
 
