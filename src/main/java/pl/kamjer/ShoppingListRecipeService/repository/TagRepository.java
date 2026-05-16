@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.repository;
+package pl.kamjer.ShoppingListRecipeService.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import pl.kamjer.ShoppingListRecipeService.model.Tag;

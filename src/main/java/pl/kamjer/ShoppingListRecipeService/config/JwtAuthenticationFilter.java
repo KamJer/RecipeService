@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.config;
+package pl.kamjer.ShoppingListRecipeService.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,10 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pl.kamjer.ShoppingListRecipeService.client.UserClient;
-import pl.kamjer.ShoppingListRecipeService.model.User;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -39,7 +37,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             final String token = authHeader.substring(7);
 
-            // 🔥 call do UserService
             UserInfo user = userClient.isValid(token);
 
             if (user != null && SecurityContextHolder.getContext().getAuthentication() == null) {

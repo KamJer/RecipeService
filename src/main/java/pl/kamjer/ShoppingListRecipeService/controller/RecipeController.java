@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.controller;
+package pl.kamjer.ShoppingListRecipeService.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;

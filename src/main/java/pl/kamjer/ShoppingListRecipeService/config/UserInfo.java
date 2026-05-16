@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.config;
+package pl.kamjer.ShoppingListRecipeService.config;
 
 import lombok.Builder;
 import lombok.Getter;

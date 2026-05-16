@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.model;
+package pl.kamjer.ShoppingListRecipeService.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;

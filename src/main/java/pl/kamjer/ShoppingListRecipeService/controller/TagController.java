@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.controller;
+package pl.kamjer.ShoppingListRecipeService.controller;
 
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;

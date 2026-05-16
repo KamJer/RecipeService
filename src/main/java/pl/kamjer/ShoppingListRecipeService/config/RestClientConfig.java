@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.config;
+package pl.kamjer.ShoppingListRecipeService.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.web.client.RestClientSsl;

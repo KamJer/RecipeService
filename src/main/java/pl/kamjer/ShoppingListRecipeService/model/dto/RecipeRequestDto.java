@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.model.dto;
+package pl.kamjer.ShoppingListRecipeService.model.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

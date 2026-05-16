@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.controller.advice;
+package pl.kamjer.ShoppingListRecipeService.controller.advice;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

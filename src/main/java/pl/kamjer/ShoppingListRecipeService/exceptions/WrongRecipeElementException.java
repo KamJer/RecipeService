@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.exceptions;
+package pl.kamjer.ShoppingListRecipeService.exceptions;
 
 public class WrongRecipeElementException extends RuntimeException {
     public WrongRecipeElementException(String message) {

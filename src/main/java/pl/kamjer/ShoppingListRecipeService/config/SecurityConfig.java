@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.config;
+package pl.kamjer.ShoppingListRecipeService.config;
 
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;

@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.model;
+package pl.kamjer.ShoppingListRecipeService.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

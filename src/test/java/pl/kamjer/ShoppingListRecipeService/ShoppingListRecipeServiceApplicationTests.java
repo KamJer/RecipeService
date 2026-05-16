@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService;
+package pl.kamjer.ShoppingListRecipeService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,4 +1,4 @@
-﻿package pl.kamjer.ShoppingListRecipeService.model.dto;
+package pl.kamjer.ShoppingListRecipeService.model.dto;
 
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Builder;
