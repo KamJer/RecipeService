@@ -17,6 +17,7 @@ public class RecipeDto {
     private List<IngredientDto> ingredients;
     private List<StepDto> steps;
     private List<TagDto> tags;
+    private String userName;
     private String source;
     private Boolean published;
 }

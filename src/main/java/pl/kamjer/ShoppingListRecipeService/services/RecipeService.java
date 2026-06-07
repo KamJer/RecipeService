@@ -38,8 +38,8 @@ public class RecipeService extends CustomService{
     @Transactional
     public Recipe insertRecipe(Recipe recipe)throws WrongRecipeElementException {
         User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException(""));
-        recipe.getIngredients().forEach(ingredient -> ingredient.setRecipe(recipe));
-        recipe.getSteps().forEach(step -> step.setRecipe(recipe));
+        Optional.ofNullable(recipe.getIngredients()).orElse(new ArrayList<>()).forEach(ingredient -> ingredient.setRecipe(recipe));
+        Optional.ofNullable(recipe.getSteps()).orElse(new ArrayList<>()).forEach(step -> step.setRecipe(recipe));
         recipe.setUserName(user.getUserName());
         if (recipe.getSource() == null || recipe.getSource().isEmpty()) {
             recipe.setSource(user.getUserName());
