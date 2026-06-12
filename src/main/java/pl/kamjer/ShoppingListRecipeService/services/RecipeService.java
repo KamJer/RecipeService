@@ -2,12 +2,9 @@ package pl.kamjer.ShoppingListRecipeService.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import pl.kamjer.ShoppingListRecipeService.client.UserClient;
@@ -20,6 +17,7 @@ import java.util.stream.Collectors;
 
 
 @Service
+@Slf4j
 public class RecipeService extends CustomService{
 
     private final RecipeRepository recipeRepository;
@@ -37,7 +35,8 @@ public class RecipeService extends CustomService{
 
     @Transactional
     public Recipe insertRecipe(Recipe recipe)throws WrongRecipeElementException {
-        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException(""));
+        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException("User must be authenticated to insert a recipe"));
+        log.info("Inserting recipe '{}' by user '{}'", recipe.getName(), user.getUserName());
         recipe.setRecipeId(null);
         Optional.ofNullable(recipe.getIngredients()).orElse(new ArrayList<>()).forEach(ingredient -> ingredient.setRecipe(recipe));
         Optional.ofNullable(recipe.getSteps()).orElse(new ArrayList<>()).forEach(step -> step.setRecipe(recipe));
@@ -52,8 +51,9 @@ public class RecipeService extends CustomService{
 
     @Transactional
     public void updateRecipe(Recipe recipe) throws IllegalAccessException, WrongRecipeElementException {
-        Recipe recipeToUpdate = recipeRepository.findById(recipe.getRecipeId()).orElseThrow(NoSuchElementException::new);
-        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException(""));
+        Recipe recipeToUpdate = recipeRepository.findById(recipe.getRecipeId()).orElseThrow(() -> new NoSuchElementException("Recipe not found with id: " + recipe.getRecipeId()));
+        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException("User must be authenticated to update a recipe"));
+        log.info("Updating recipe '{}' (id={}) by user '{}'", recipe.getName(), recipe.getRecipeId(), user.getUserName());
         if (!recipeToUpdate.getUserName().equals(user.getUserName())) {
             throw new IllegalAccessException("This recipe does not belong to this user: %s, you can not update it!".formatted(user.getUserName()));
         }
@@ -98,13 +98,14 @@ public class RecipeService extends CustomService{
     }
 
     @Transactional
-    public void deleteRecipe(Long id) {
-        Optional.ofNullable(getUserFromAuth()).ifPresent(user -> {
-            Recipe recipeToDelete = recipeRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Such recipe does not exists"));
-            if (user.getUserName().equals(recipeToDelete.getUserName())) {
-                recipeRepository.deleteById(id);
-            }
-        });
+    public void deleteRecipe(Long id) throws IllegalAccessException {
+        User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(() -> new BadCredentialsException("User must be authenticated to delete a recipe"));
+        Recipe recipeToDelete = recipeRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Recipe not found with id: " + id));
+        if (!user.getUserName().equals(recipeToDelete.getUserName())) {
+            throw new IllegalAccessException("This recipe does not belong to user: %s, you can not delete it!".formatted(user.getUserName()));
+        }
+        log.info("Deleting recipe '{}' (id={}) by user '{}'", recipeToDelete.getName(), id, user.getUserName());
+        recipeRepository.deleteById(id);
     }
 
     @Transactional

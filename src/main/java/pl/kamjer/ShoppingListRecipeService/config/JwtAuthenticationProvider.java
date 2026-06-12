@@ -1,6 +1,7 @@
 package pl.kamjer.ShoppingListRecipeService.config;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -12,6 +13,7 @@ import pl.kamjer.ShoppingListRecipeService.client.UserClient;
 
 import java.util.List;
 
+@Slf4j
 @Component
 @AllArgsConstructor
 public class JwtAuthenticationProvider implements AuthenticationProvider {
@@ -25,6 +27,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 
         try {
             UserInfo isValid = secClient.isValid(token);
+            log.debug("User '{}' authenticated successfully with role '{}'", isValid.getUserName(), isValid.getRole());
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(
                             isValid.getUserName(),
@@ -36,6 +39,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 
             return auth;
         } catch (HttpClientErrorException ex) {
+            log.warn("Token validation failed: {}", ex.getMessage());
             throw new BadCredentialsException("Invalid token");
         }
     }

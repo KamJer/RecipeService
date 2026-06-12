@@ -1,11 +1,8 @@
 package pl.kamjer.ShoppingListRecipeService.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Version;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
-import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
@@ -17,17 +14,7 @@ public class User {
 
     @EqualsAndHashCode.Include
     private String userName;
-    @Column(name = "password")
-    private String password;
-    @Version
-    @Column(name = "saved_time")
+    @JsonProperty("password")
+    private String token;
     private LocalDateTime savedTime;
-
-    public UserDetails convertToSpringUser() {
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(this.getUserName())
-                .password(this.getPassword())
-                .roles("USER")
-                .build();
-    }
 }

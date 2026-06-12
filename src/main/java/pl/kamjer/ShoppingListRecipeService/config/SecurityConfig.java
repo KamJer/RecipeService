@@ -13,22 +13,25 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
 @Configuration
-@EnableWebSecurity
 @AllArgsConstructor
+@EnableWebSecurity
 public class SecurityConfig {
 
-    private JwtAuthenticationFilter jwtAuthenticationFiler;
     private JwtAuthenticationProvider jwtAuthenticationProvider;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+        JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(authenticationManager);
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authenticationProvider(jwtAuthenticationProvider)
-                .addFilterBefore(jwtAuthenticationFiler, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
@@ -40,11 +43,5 @@ public class SecurityConfig {
                                 .anyRequest().authenticated()
                 );
         return http.build();
-    }
-
-    @Bean
-    AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
     }
 }
