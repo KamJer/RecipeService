@@ -37,8 +37,7 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.OPTIONS).permitAll()
                                 .requestMatchers(HttpMethod.GET, "/recipe/user").authenticated()
                                 .requestMatchers(HttpMethod.GET).permitAll()
-                                .anyRequest().permitAll()
-
+                                .anyRequest().authenticated()
                 );
         return http.build();
     }
