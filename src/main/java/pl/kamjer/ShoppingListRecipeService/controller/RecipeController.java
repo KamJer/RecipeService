@@ -13,7 +13,6 @@ import pl.kamjer.ShoppingListRecipeService.model.dto.RecipeDto;
 import pl.kamjer.ShoppingListRecipeService.model.dto.RecipeRequestDto;
 import pl.kamjer.ShoppingListRecipeService.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipeService.services.RecipeService;
-import pl.kamjer.ShoppingListRecipeService.services.TagService;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,7 +26,7 @@ public class RecipeController {
     private ObjectMapper objectMapper;
 
     @PutMapping
-    public ResponseEntity<RecipeDto> putRecipe(@RequestBody RecipeDto recipeDto) throws IllegalAccessException, WrongRecipeElementException {
+    public ResponseEntity<RecipeDto> putRecipe(@RequestBody RecipeDto recipeDto) throws WrongRecipeElementException {
         return ResponseEntity.ok(objectMapper.convertValue(recipeService.insertRecipe(objectMapper.convertValue(recipeDto, Recipe.class)), RecipeDto.class));
     }
 
@@ -44,7 +43,7 @@ public class RecipeController {
     }
 
     @GetMapping(path = "/id/{id}")
-    public ResponseEntity<RecipeDto> getRecipeById(@PathVariable Long id) throws IllegalAccessException {
+    public ResponseEntity<RecipeDto> getRecipeById(@PathVariable Long id) {
         return ResponseEntity.ok(objectMapper.convertValue(recipeService.getRecipeById(id), RecipeDto.class));
     }
 
