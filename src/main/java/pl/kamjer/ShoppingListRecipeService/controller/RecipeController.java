@@ -32,16 +32,20 @@ public class RecipeController {
         return objectMapper.convertValue(recipe, RecipeDto.class);
     }
 
+    private Recipe toRecipe(RecipeDto recipeDto) {
+        return objectMapper.convertValue(recipeDto, Recipe.class);
+    }
+
     @PutMapping
     public ResponseEntity<RecipeDto> putRecipe(@Valid @RequestBody RecipeDto recipeDto) throws WrongRecipeElementException {
         log.info("PUT /recipe - creating recipe '{}'", recipeDto.getName());
-        return ResponseEntity.ok(toDto(recipeService.insertRecipe(objectMapper.convertValue(recipeDto, Recipe.class))));
+        return ResponseEntity.ok(toDto(recipeService.insertRecipe(toRecipe(recipeDto))));
     }
 
     @PostMapping
     public ResponseEntity<Boolean> postRecipe(@Valid @RequestBody RecipeDto recipeDto) throws IllegalAccessException, WrongRecipeElementException {
         log.info("POST /recipe - updating recipe id={}", recipeDto.getRecipeId());
-        recipeService.updateRecipe(objectMapper.convertValue(recipeDto, Recipe.class));
+        recipeService.updateRecipe(toRecipe(recipeDto));
         return ResponseEntity.ok(true);
     }
 

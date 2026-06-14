@@ -41,6 +41,9 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
         } catch (HttpClientErrorException ex) {
             log.warn("Token validation failed: {}", ex.getMessage());
             throw new BadCredentialsException("Invalid token");
+        } catch (Exception ex) {
+            log.error("Token validation failed due to SecService error: {}", ex.getMessage());
+            throw new BadCredentialsException("Authentication service unavailable");
         }
     }
 
