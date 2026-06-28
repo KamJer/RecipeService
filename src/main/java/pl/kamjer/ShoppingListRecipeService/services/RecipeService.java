@@ -138,16 +138,22 @@ public class RecipeService extends CustomService{
 
     @Transactional
     public Page<Recipe> getRecipeByTags(Set<Tag> tags, Pageable pageable) {
+        Set<String> normalizedTags = tags.stream()
+                .map(t -> t.getTag().trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
         return Optional.ofNullable(getUserFromAuth())
-                .map(user -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), user.getUserName(), pageable))
-                .orElseGet(() -> recipeRepository.findByAnyTag(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), null, pageable));
+                .map(user -> recipeRepository.findByAnyTag(normalizedTags, user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findByAnyTag(normalizedTags, null, pageable));
     }
 
     @Transactional
     public Page<Recipe> getRecipeByTagsRequired(Set<Tag> tags, Pageable pageable) {
+        Set<String> normalizedTags = tags.stream()
+                .map(t -> t.getTag().trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
         return Optional.ofNullable(getUserFromAuth())
-                .map(user -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), user.getUserName(), pageable))
-                .orElseGet(() -> recipeRepository.findByAllTags(tags.stream().map(Tag::getTag).collect(Collectors.toSet()), tags.size(), null, pageable));
+                .map(user -> recipeRepository.findByAllTags(normalizedTags, normalizedTags.size(), user.getUserName(), pageable))
+                .orElseGet(() -> recipeRepository.findByAllTags(normalizedTags, normalizedTags.size(), null, pageable));
     }
 
     @Transactional

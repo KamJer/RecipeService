@@ -18,6 +18,7 @@ import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -439,7 +440,7 @@ class RecipeServiceTest {
     void getRecipeByProducts_whenAuthenticated_passesUserName() {
         Page<Recipe> page = Page.empty();
         doReturn(USER).when(service).getUserFromAuth();
-        when(recipeRepository.findCookableRecipes(anyList(), anyInt(), eq("tester"), eq(PAGEABLE))).thenReturn(page);
+        when(recipeRepository.findCookableRecipes(anyList(), anyLong(), eq("tester"), eq(PAGEABLE))).thenReturn(page);
 
         Page<Recipe> result = service.getRecipeByProducts(List.of("Flour"), 2, PAGEABLE);
 
@@ -450,7 +451,7 @@ class RecipeServiceTest {
     void getRecipeByProducts_whenNotAuthenticated_passesNull() {
         Page<Recipe> page = Page.empty();
         doReturn(null).when(service).getUserFromAuth();
-        when(recipeRepository.findCookableRecipes(anyList(), anyInt(), isNull(), eq(PAGEABLE))).thenReturn(page);
+        when(recipeRepository.findCookableRecipes(anyList(), anyLong(), isNull(), eq(PAGEABLE))).thenReturn(page);
 
         Page<Recipe> result = service.getRecipeByProducts(List.of("Flour"), 2, PAGEABLE);
 
@@ -561,7 +562,4 @@ class RecipeServiceTest {
         assertThat(result).isSameAs(page);
     }
 
-    private static <T> T returnsFirstArg() {
-        return org.mockito.AdditionalAnswers.returnsFirstArg();
-    }
 }

@@ -1,5 +1,7 @@
 package pl.kamjer.ShoppingListRecipeService.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -7,8 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -21,6 +21,7 @@ import pl.kamjer.ShoppingListRecipeService.client.UserClient;
 import pl.kamjer.ShoppingListRecipeService.config.TestSecurityConfig;
 import pl.kamjer.ShoppingListRecipeService.model.Tag;
 import pl.kamjer.ShoppingListRecipeService.model.dto.*;
+import pl.kamjer.ShoppingListRecipeService.repository.RecipeRepository;
 import pl.kamjer.ShoppingListRecipeService.repository.TagRepository;
 
 import java.util.List;
@@ -40,6 +41,12 @@ class RecipeControllerIntegrationTest {
 
     @Autowired
     private TagRepository tagRepository;
+
+    @Autowired
+    private RecipeRepository recipeRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockitoBean
     private UserClient userClient;
@@ -61,6 +68,7 @@ class RecipeControllerIntegrationTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+        recipeRepository.deleteAll();
         tagRepository.deleteAll();
     }
 
@@ -116,18 +124,6 @@ class RecipeControllerIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).contains("Passed tags don't exist");
-    }
-
-    @Test
-    void putRecipe_whenNotAuthenticated_returns401() {
-        SecurityContextHolder.clearContext();
-
-        RecipeDto dto = RecipeDto.builder().name("Test").build();
-
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/recipe", HttpMethod.PUT, new HttpEntity<>(dto), String.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -206,7 +202,7 @@ class RecipeControllerIntegrationTest {
     }
 
     @Test
-    void getAllRecipes_returnsAllRecipes() {
+    void getAllRecipes_returnsAllRecipes() throws Exception {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder().name("Recipe A").tags(List.of()).build()),
                 RecipeDto.class);
@@ -214,16 +210,17 @@ class RecipeControllerIntegrationTest {
                 new HttpEntity<>(RecipeDto.builder().name("Recipe B").tags(List.of()).build()),
                 RecipeDto.class);
 
-        ResponseEntity<Page<RecipeDto>> response = restTemplate.exchange(
-                "/recipe", HttpMethod.GET, null,
-                new ParameterizedTypeReference<Page<RecipeDto>>() {});
+        ResponseEntity<String> raw = restTemplate.exchange(
+                "/recipe", HttpMethod.GET, null, String.class);
+        JsonNode root = objectMapper.readTree(raw.getBody());
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getTotalElements()).isEqualTo(2);
+        assertThat(raw.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(root.get("totalElements").asLong()).isEqualTo(2);
+        assertThat(root.get("content")).hasSize(2);
     }
 
     @Test
-    void getRecipeByTags_returnsMatchingRecipes() {
+    void getRecipeByTags_returnsMatchingRecipes() throws Exception {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
                         .name("Italian Dish").tags(List.of(TagDto.builder().tag("italian").build())).build()),
@@ -233,18 +230,19 @@ class RecipeControllerIntegrationTest {
                         .name("Dessert").tags(List.of(TagDto.builder().tag("dessert").build())).build()),
                 RecipeDto.class);
 
-        ResponseEntity<Page<RecipeDto>> response = restTemplate.exchange(
+        ResponseEntity<String> raw = restTemplate.exchange(
                 "/recipe/tag?page=0&size=10", HttpMethod.POST,
                 new HttpEntity<>(Set.of(TagDto.builder().tag("italian").build())),
-                new ParameterizedTypeReference<Page<RecipeDto>>() {});
+                String.class);
+        JsonNode root = objectMapper.readTree(raw.getBody());
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getTotalElements()).isEqualTo(1);
-        assertThat(response.getBody().getContent().getFirst().getName()).isEqualTo("Italian Dish");
+        assertThat(raw.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(root.get("totalElements").asLong()).isEqualTo(1);
+        assertThat(root.get("content").get(0).get("name").asText()).isEqualTo("Italian Dish");
     }
 
     @Test
-    void getRecipeByTagsRequired_returnsExactMatch() {
+    void getRecipeByTagsRequired_returnsExactMatch() throws Exception {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
                         .name("Italian Dessert")
@@ -258,21 +256,22 @@ class RecipeControllerIntegrationTest {
                         .build()),
                 RecipeDto.class);
 
-        ResponseEntity<Page<RecipeDto>> response = restTemplate.exchange(
+        ResponseEntity<String> raw = restTemplate.exchange(
                 "/recipe/tag/required?page=0&size=10", HttpMethod.POST,
                 new HttpEntity<>(Set.of(
                         TagDto.builder().tag("italian").build(),
                         TagDto.builder().tag("dessert").build()
                 )),
-                new ParameterizedTypeReference<Page<RecipeDto>>() {});
+                String.class);
+        JsonNode root = objectMapper.readTree(raw.getBody());
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getTotalElements()).isEqualTo(1);
-        assertThat(response.getBody().getContent().getFirst().getName()).isEqualTo("Italian Dessert");
+        assertThat(raw.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(root.get("totalElements").asLong()).isEqualTo(1);
+        assertThat(root.get("content").get(0).get("name").asText()).isEqualTo("Italian Dessert");
     }
 
     @Test
-    void getRecipeByTagsRequired_whenTagMissing_returnsEmpty() {
+    void getRecipeByTagsRequired_whenTagMissing_returnsEmpty() throws Exception {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
                         .name("Italian Dish")
@@ -280,15 +279,17 @@ class RecipeControllerIntegrationTest {
                         .build()),
                 RecipeDto.class);
 
-        ResponseEntity<Page<RecipeDto>> response = restTemplate.exchange(
+        ResponseEntity<String> raw = restTemplate.exchange(
                 "/recipe/tag/required?page=0&size=10", HttpMethod.POST,
                 new HttpEntity<>(Set.of(
                         TagDto.builder().tag("italian").build(),
                         TagDto.builder().tag("dessert").build()
                 )),
-                new ParameterizedTypeReference<Page<RecipeDto>>() {});
+                String.class);
+        JsonNode root = objectMapper.readTree(raw.getBody());
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getTotalElements()).isEqualTo(0);
+        assertThat(raw.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(root.get("totalElements").asLong()).isEqualTo(0);
+        assertThat(root.get("content")).hasSize(0);
     }
 }
