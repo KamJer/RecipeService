@@ -9,7 +9,6 @@ import pl.kamjer.ShoppingListRecipeService.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipeService.repository.TagRepository;
 
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -28,7 +27,7 @@ public class TagService{
 
     @Transactional
     public TagDto createTag(TagDto tagDto) {
-        String tagName = tagDto.getTag().trim().toLowerCase(Locale.ROOT);
+        String tagName = tagDto.getTag().trim();
         if (tagRepository.existsByTag(tagName)) {
             throw new WrongRecipeElementException("Tag '" + tagName + "' already exists");
         }
@@ -46,11 +45,11 @@ public class TagService{
 
     @Transactional
     public TagDto updateTag(String oldTagName, TagDto newTagDto) {
-        String newTagName = newTagDto.getTag().trim().toLowerCase(Locale.ROOT);
+        String newTagName = newTagDto.getTag().trim();
         if (!tagRepository.existsById(oldTagName)) {
             throw new NoSuchElementException("Tag '" + oldTagName + "' not found");
         }
-        if (!oldTagName.equals(newTagName) && tagRepository.existsByTag(newTagName)) {
+        if (!oldTagName.equals(newTagName) && !oldTagName.equalsIgnoreCase(newTagName) && tagRepository.existsByTag(newTagName)) {
             throw new WrongRecipeElementException("Tag '" + newTagName + "' already exists");
         }
         tagRepository.updateTagName(oldTagName, newTagName);

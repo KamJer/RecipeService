@@ -139,7 +139,7 @@ public class RecipeService extends CustomService{
     @Transactional
     public Page<Recipe> getRecipeByTags(Set<Tag> tags, Pageable pageable) {
         Set<String> normalizedTags = tags.stream()
-                .map(t -> t.getTag().trim().toLowerCase(Locale.ROOT))
+                .map(t -> t.getTag().trim())
                 .collect(Collectors.toSet());
         return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByAnyTag(normalizedTags, user.getUserName(), pageable))
@@ -149,7 +149,7 @@ public class RecipeService extends CustomService{
     @Transactional
     public Page<Recipe> getRecipeByTagsRequired(Set<Tag> tags, Pageable pageable) {
         Set<String> normalizedTags = tags.stream()
-                .map(t -> t.getTag().trim().toLowerCase(Locale.ROOT))
+                .map(t -> t.getTag().trim())
                 .collect(Collectors.toSet());
         return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByAllTags(normalizedTags, normalizedTags.size(), user.getUserName(), pageable))
@@ -170,22 +170,25 @@ public class RecipeService extends CustomService{
     }
 
     private void validateTags(Recipe recipe) throws WrongRecipeElementException {
-        Set<Tag> missingTags = findMissingTags(Optional.ofNullable(recipe.getTags()).orElseGet(HashSet::new));
-        //        TODO: make proper validation
-        if (!missingTags.isEmpty()) {
-            StringBuilder errorMessage = new StringBuilder("Passed tags don't exist, insert correct tags").append("\n");
-            missingTags.forEach(tag -> errorMessage.append(tag.getTag()).append(" "));
+        Set<Tag> recipeTags = Optional.ofNullable(recipe.getTags()).orElseGet(HashSet::new);
+        if (recipeTags.isEmpty()) {
+            return;
+        }
+        Set<String> tagNames = recipeTags.stream()
+                .map(t -> t.getTag().trim())
+                .collect(Collectors.toSet());
+        Set<Tag> existing = tagRepository.findAllByTagIn(tagNames);
+        Set<String> existingLower = existing.stream()
+                .map(t -> t.getTag().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        Set<String> missing = tagNames.stream()
+                .filter(t -> !existingLower.contains(t.toLowerCase(Locale.ROOT)))
+                .collect(Collectors.toSet());
+        if (!missing.isEmpty()) {
+            StringBuilder errorMessage = new StringBuilder("Passed tags don't exist, insert correct tags\n");
+            missing.forEach(tag -> errorMessage.append(tag).append(" "));
             throw new WrongRecipeElementException(errorMessage.toString());
         }
-    }
-
-    private Set<Tag> findMissingTags(Set<Tag> tagsToCheck) {
-        Set<Tag> normalized = tagsToCheck.stream()
-                .map(t -> Tag.builder().tag(t
-                        .getTag().trim().toLowerCase(Locale.ROOT)).build())
-                .collect(Collectors.toSet());
-        Set<Tag> existing = tagRepository.findAllByTagIn(normalized.stream().map(Tag::getTag).collect(Collectors.toSet()));
-        normalized.removeAll(existing);
-        return normalized;
+        recipe.setTags(existing);
     }
 }
