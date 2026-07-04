@@ -14,6 +14,6 @@ public class StepDto {
 
     @NotNull
     private Integer stepNumber;
-    @NotBlank @Size(max = 255)
+    @NotBlank
     private String instruction;
 }
