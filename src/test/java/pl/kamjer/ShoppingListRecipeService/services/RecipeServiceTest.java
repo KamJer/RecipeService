@@ -266,7 +266,6 @@ class RecipeServiceTest {
 
         when(recipeRepository.findById(10L)).thenReturn(Optional.of(recipeToUpdate));
         doReturn(USER).when(service).getUserFromAuth();
-        when(tagRepository.findAllByTagIn(any())).thenReturn(Set.of());
         when(ingredientRepository.findById(5L)).thenReturn(Optional.of(wrongIngredientInDb));
 
         assertThatThrownBy(() -> service.updateRecipe(inputRecipe))
@@ -302,7 +301,6 @@ class RecipeServiceTest {
 
         when(recipeRepository.findById(10L)).thenReturn(Optional.of(recipeToUpdate));
         doReturn(USER).when(service).getUserFromAuth();
-        when(tagRepository.findAllByTagIn(any())).thenReturn(Set.of());
         when(stepRepository.findById(3L)).thenReturn(Optional.of(wrongStepInDb));
 
         assertThatThrownBy(() -> service.updateRecipe(inputRecipe))

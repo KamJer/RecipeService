@@ -58,18 +58,18 @@ class TagServiceTest {
     @Test
     void createTag_createsAndReturnsNewTag() {
         TagDto input = TagDto.builder().tag("  Italian ").build();
-        when(tagRepository.existsByTag("italian")).thenReturn(false);
-        when(tagRepository.save(any())).thenReturn(Tag.builder().tag("italian").build());
+        when(tagRepository.existsByTag("Italian")).thenReturn(false);
+        when(tagRepository.save(any())).thenReturn(Tag.builder().tag("Italian").build());
 
         TagDto result = service.createTag(input);
 
-        assertThat(result.getTag()).isEqualTo("italian");
-        verify(tagRepository).save(Tag.builder().tag("italian").build());
+        assertThat(result.getTag()).isEqualTo("Italian");
+        verify(tagRepository).save(Tag.builder().tag("Italian").build());
     }
 
     @Test
     void createTag_whenAlreadyExists_throws() {
-        when(tagRepository.existsByTag("italian")).thenReturn(true);
+        when(tagRepository.existsByTag("Italian")).thenReturn(true);
 
         TagDto input = TagDto.builder().tag("Italian").build();
 
@@ -102,12 +102,12 @@ class TagServiceTest {
     void updateTag_updatesAndReturnsNewTag() {
         TagDto input = TagDto.builder().tag("  Italian ").build();
         when(tagRepository.existsById("old")).thenReturn(true);
-        when(tagRepository.existsByTag("italian")).thenReturn(false);
+        when(tagRepository.existsByTag("Italian")).thenReturn(false);
 
         TagDto result = service.updateTag("old", input);
 
-        assertThat(result.getTag()).isEqualTo("italian");
-        verify(tagRepository).updateTagName("old", "italian");
+        assertThat(result.getTag()).isEqualTo("Italian");
+        verify(tagRepository).updateTagName("old", "Italian");
     }
 
     @Test
