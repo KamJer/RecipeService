@@ -11,11 +11,13 @@ import org.springframework.web.bind.annotation.*;
 import pl.kamjer.ShoppingListRecipeService.exceptions.WrongRecipeElementException;
 import pl.kamjer.ShoppingListRecipeService.model.Recipe;
 import pl.kamjer.ShoppingListRecipeService.model.Tag;
+import pl.kamjer.ShoppingListRecipeService.model.dto.IngredientDto;
 import pl.kamjer.ShoppingListRecipeService.model.dto.RecipeDto;
-import pl.kamjer.ShoppingListRecipeService.model.dto.RecipeRequestDto;
-import pl.kamjer.ShoppingListRecipeService.model.dto.TagDto;
+import pl.kamjer.ShoppingListRecipeService.model.dto.StepDto;
 import pl.kamjer.ShoppingListRecipeService.services.RecipeService;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,11 +31,33 @@ public class RecipeController {
     private ObjectMapper objectMapper;
 
     private RecipeDto toDto(Recipe recipe) {
-        return objectMapper.convertValue(recipe, RecipeDto.class);
+        return RecipeDto.builder()
+                .recipeId(recipe.getRecipeId())
+                .name(recipe.getName())
+                .description(recipe.getDescription())
+                .ingredients(Optional.ofNullable(recipe.getIngredients()).orElse(List.of()).stream()
+                        .map(i -> objectMapper.convertValue(i, IngredientDto.class))
+                        .toList())
+                .steps(Optional.ofNullable(recipe.getSteps()).orElse(List.of()).stream()
+                        .map(s -> objectMapper.convertValue(s, StepDto.class))
+                        .toList())
+                .tags(Optional.ofNullable(recipe.getTags()).orElse(Set.of()).stream()
+                        .map(Tag::getTag)
+                        .toList())
+                .userName(recipe.getUserName())
+                .source(recipe.getSource())
+                .published(recipe.getPublished())
+                .build();
     }
 
     private Recipe toRecipe(RecipeDto recipeDto) {
-        return objectMapper.convertValue(recipeDto, Recipe.class);
+        Recipe recipe = objectMapper.convertValue(recipeDto, Recipe.class);
+        if (recipeDto.getTags() != null) {
+            recipe.setTags(recipeDto.getTags().stream()
+                    .map(t -> Tag.builder().tag(t).build())
+                    .collect(Collectors.toSet()));
+        }
+        return recipe;
     }
 
     @PutMapping
@@ -61,24 +85,26 @@ public class RecipeController {
         return ResponseEntity.ok(toDto(recipeService.getRecipeById(id)));
     }
 
-    @PostMapping(path = "/products")
-    public ResponseEntity<Page<RecipeDto>> getRecipeByProducts(@Valid @RequestBody RecipeRequestDto recipeRequestDto, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.getRecipeByProducts(recipeRequestDto.getProducts(), recipeRequestDto.getMaxMissing(), pageable).map(this::toDto));
-    }
-
     @GetMapping(path = "/name/{query}")
     public ResponseEntity<Page<RecipeDto>> getRecipeByQuery(@PathVariable String query, Pageable pageable) {
         return ResponseEntity.ok(recipeService.getRecipeByQuery(query, pageable).map(this::toDto));
     }
 
-    @PostMapping(path = "/products/required")
-    public ResponseEntity<Page<RecipeDto>> getRecipeByProductsRequired(@Valid @RequestBody RecipeRequestDto recipeRequestDto, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.getRecipeByProductsRequired(recipeRequestDto.getProducts(), pageable).map(this::toDto));
+    @GetMapping(path = "/exact/{name}")
+    public ResponseEntity<RecipeDto> getRecipeByExactName(@PathVariable String name) {
+        return recipeService.getRecipeByExactName(name)
+                .map(recipe -> ResponseEntity.ok(toDto(recipe)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping(path = "/ingredients")
+    public ResponseEntity<Page<RecipeDto>> getRecipeByIngredients(@RequestBody List<String> ingredients, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipesByIngredientNames(ingredients, pageable).map(this::toDto));
     }
 
     @PostMapping(path = "/tag")
-    public ResponseEntity<Page<RecipeDto>> getRecipeByTags(@Valid @RequestBody Set<TagDto> tags, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.getRecipeByTags(tags.stream().map(tagDto -> objectMapper.convertValue(tagDto, Tag.class)).collect(Collectors.toSet()), pageable).map(this::toDto));
+    public ResponseEntity<Page<RecipeDto>> getRecipeByTags(@RequestBody Set<String> tags, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipeByTags(tags, pageable).map(this::toDto));
     }
 
     @GetMapping(path = "/user")
@@ -87,8 +113,8 @@ public class RecipeController {
     }
 
     @PostMapping(path = "/tag/required")
-    public ResponseEntity<Page<RecipeDto>> getRecipeByTagsRequired(@Valid @RequestBody Set<TagDto> tags, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.getRecipeByTagsRequired(tags.stream().map(tagDto -> objectMapper.convertValue(tagDto, Tag.class)).collect(Collectors.toSet()), pageable).map(this::toDto));
+    public ResponseEntity<Page<RecipeDto>> getRecipeByTagsRequired(@RequestBody Set<String> tags, Pageable pageable) {
+        return ResponseEntity.ok(recipeService.getRecipeByTagsRequired(tags, pageable).map(this::toDto));
     }
 
     @GetMapping()

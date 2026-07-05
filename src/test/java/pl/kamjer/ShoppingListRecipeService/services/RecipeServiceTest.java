@@ -432,61 +432,13 @@ class RecipeServiceTest {
         assertThat(result).isSameAs(page);
     }
 
-    // ---- getRecipeByProducts ----
-
-    @Test
-    void getRecipeByProducts_whenAuthenticated_passesUserName() {
-        Page<Recipe> page = Page.empty();
-        doReturn(USER).when(service).getUserFromAuth();
-        when(recipeRepository.findCookableRecipes(anyList(), anyLong(), eq("tester"), eq(PAGEABLE))).thenReturn(page);
-
-        Page<Recipe> result = service.getRecipeByProducts(List.of("Flour"), 2, PAGEABLE);
-
-        assertThat(result).isSameAs(page);
-    }
-
-    @Test
-    void getRecipeByProducts_whenNotAuthenticated_passesNull() {
-        Page<Recipe> page = Page.empty();
-        doReturn(null).when(service).getUserFromAuth();
-        when(recipeRepository.findCookableRecipes(anyList(), anyLong(), isNull(), eq(PAGEABLE))).thenReturn(page);
-
-        Page<Recipe> result = service.getRecipeByProducts(List.of("Flour"), 2, PAGEABLE);
-
-        assertThat(result).isSameAs(page);
-    }
-
-    // ---- getRecipeByProductsRequired ----
-
-    @Test
-    void getRecipeByProductsRequired_whenAuthenticated_passesUserName() {
-        Page<Recipe> page = Page.empty();
-        doReturn(USER).when(service).getUserFromAuth();
-        when(recipeRepository.findRecipesContainingAllIngredients(anyList(), eq("tester"), eq(PAGEABLE))).thenReturn(page);
-
-        Page<Recipe> result = service.getRecipeByProductsRequired(List.of("Flour"), PAGEABLE);
-
-        assertThat(result).isSameAs(page);
-    }
-
-    @Test
-    void getRecipeByProductsRequired_whenNotAuthenticated_passesNull() {
-        Page<Recipe> page = Page.empty();
-        doReturn(null).when(service).getUserFromAuth();
-        when(recipeRepository.findRecipesContainingAllIngredients(anyList(), isNull(), eq(PAGEABLE))).thenReturn(page);
-
-        Page<Recipe> result = service.getRecipeByProductsRequired(List.of("Flour"), PAGEABLE);
-
-        assertThat(result).isSameAs(page);
-    }
-
     // ---- getRecipeByQuery ----
 
     @Test
     void getRecipeByQuery_whenAuthenticated_passesUserName() {
         Page<Recipe> page = Page.empty();
         doReturn(USER).when(service).getUserFromAuth();
-        when(recipeRepository.searchByNameBoolean(eq("pasta"), eq("tester"), eq(PAGEABLE))).thenReturn(page);
+        when(recipeRepository.searchByNameBoolean(eq("pasta*"), eq("tester"), eq(PAGEABLE))).thenReturn(page);
 
         Page<Recipe> result = service.getRecipeByQuery("pasta", PAGEABLE);
 
@@ -497,7 +449,7 @@ class RecipeServiceTest {
     void getRecipeByQuery_whenNotAuthenticated_passesNull() {
         Page<Recipe> page = Page.empty();
         doReturn(null).when(service).getUserFromAuth();
-        when(recipeRepository.searchByNameBoolean(eq("pasta"), isNull(), eq(PAGEABLE))).thenReturn(page);
+        when(recipeRepository.searchByNameBoolean(eq("pasta*"), isNull(), eq(PAGEABLE))).thenReturn(page);
 
         Page<Recipe> result = service.getRecipeByQuery("pasta", PAGEABLE);
 
@@ -509,7 +461,7 @@ class RecipeServiceTest {
     @Test
     void getRecipeByTags_whenAuthenticated_passesUserName() {
         Page<Recipe> page = Page.empty();
-        Set<Tag> tags = Set.of(Tag.builder().tag("Italian").build());
+        Set<String> tags = Set.of("Italian");
 
         doReturn(USER).when(service).getUserFromAuth();
         when(recipeRepository.findByAnyTag(anySet(), eq("tester"), eq(PAGEABLE))).thenReturn(page);
@@ -522,7 +474,7 @@ class RecipeServiceTest {
     @Test
     void getRecipeByTags_whenNotAuthenticated_passesNull() {
         Page<Recipe> page = Page.empty();
-        Set<Tag> tags = Set.of(Tag.builder().tag("Italian").build());
+        Set<String> tags = Set.of("Italian");
 
         doReturn(null).when(service).getUserFromAuth();
         when(recipeRepository.findByAnyTag(anySet(), isNull(), eq(PAGEABLE))).thenReturn(page);
@@ -537,7 +489,7 @@ class RecipeServiceTest {
     @Test
     void getRecipeByTagsRequired_whenAuthenticated_passesUserName() {
         Page<Recipe> page = Page.empty();
-        Set<Tag> tags = Set.of(Tag.builder().tag("Italian").build(), Tag.builder().tag("Dessert").build());
+        Set<String> tags = Set.of("Italian", "Dessert");
 
         doReturn(USER).when(service).getUserFromAuth();
         when(recipeRepository.findByAllTags(anySet(), eq(2L), eq("tester"), eq(PAGEABLE))).thenReturn(page);
@@ -550,7 +502,7 @@ class RecipeServiceTest {
     @Test
     void getRecipeByTagsRequired_whenNotAuthenticated_passesNull() {
         Page<Recipe> page = Page.empty();
-        Set<Tag> tags = Set.of(Tag.builder().tag("Italian").build());
+        Set<String> tags = Set.of("Italian");
 
         doReturn(null).when(service).getUserFromAuth();
         when(recipeRepository.findByAllTags(anySet(), eq(1L), isNull(), eq(PAGEABLE))).thenReturn(page);

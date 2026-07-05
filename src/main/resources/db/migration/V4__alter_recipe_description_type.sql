@@ -1,0 +1,1 @@
+ALTER TABLE `recipe` MODIFY `description` TEXT DEFAULT NULL;

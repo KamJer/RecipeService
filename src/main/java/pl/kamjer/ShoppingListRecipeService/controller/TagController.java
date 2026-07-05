@@ -1,11 +1,9 @@
 package pl.kamjer.ShoppingListRecipeService.controller;
 
-import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import pl.kamjer.ShoppingListRecipeService.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipeService.services.TagService;
 
 import java.util.Set;
@@ -18,18 +16,18 @@ public class TagController {
     private TagService tagService;
 
     @GetMapping
-    public ResponseEntity<Set<TagDto>> getAllTags() {
+    public ResponseEntity<Set<String>> getAllTags() {
         return ResponseEntity.ok(tagService.getAllTags());
     }
 
     @PostMapping
-    public ResponseEntity<TagDto> createTag(@Valid @RequestBody TagDto tagDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(tagService.createTag(tagDto));
+    public ResponseEntity<String> createTag(@RequestBody String tag) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(tagService.createTag(tag));
     }
 
     @PutMapping(path = "/{tag}")
-    public ResponseEntity<TagDto> updateTag(@PathVariable String tag, @Valid @RequestBody TagDto tagDto) {
-        return ResponseEntity.ok(tagService.updateTag(tag, tagDto));
+    public ResponseEntity<String> updateTag(@PathVariable String tag, @RequestBody String newTag) {
+        return ResponseEntity.ok(tagService.updateTag(tag, newTag));
     }
 
     @DeleteMapping(path = "/{tag}")

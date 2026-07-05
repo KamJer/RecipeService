@@ -16,7 +16,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import pl.kamjer.ShoppingListRecipeService.client.UserClient;
 import pl.kamjer.ShoppingListRecipeService.config.TestSecurityConfig;
 import pl.kamjer.ShoppingListRecipeService.model.Tag;
-import pl.kamjer.ShoppingListRecipeService.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipeService.model.dto.UserDto;
 import pl.kamjer.ShoppingListRecipeService.repository.RecipeRepository;
 import pl.kamjer.ShoppingListRecipeService.repository.TagRepository;
@@ -68,32 +67,30 @@ class TagControllerIntegrationTest {
         tagRepository.save(Tag.builder().tag("dessert").build());
         tagRepository.save(Tag.builder().tag("vegan").build());
 
-        ResponseEntity<Set<TagDto>> response = restTemplate.exchange(
+        ResponseEntity<Set<String>> response = restTemplate.exchange(
                 "/tags",
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<Set<TagDto>>() {});
+                new ParameterizedTypeReference<Set<String>>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody()).extracting(TagDto::getTag)
+        assertThat(response.getBody())
                 .containsExactlyInAnyOrder("italian", "dessert", "vegan");
     }
 
     @Test
     void createTag_createsAndReturnsTag() {
         authenticateAs("admin", "admin");
-        TagDto input = TagDto.builder().tag("newtag").build();
 
-        ResponseEntity<TagDto> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                 "/tags",
                 HttpMethod.POST,
-                new HttpEntity<>(input),
-                TagDto.class);
+                new HttpEntity<>("newtag"),
+                String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getTag()).isEqualTo("newtag");
+        assertThat(response.getBody()).isEqualTo("newtag");
         assertThat(tagRepository.existsByTag("newtag")).isTrue();
     }
 
@@ -102,12 +99,10 @@ class TagControllerIntegrationTest {
         authenticateAs("admin", "admin");
         tagRepository.save(Tag.builder().tag("existing").build());
 
-        TagDto input = TagDto.builder().tag("existing").build();
-
         ResponseEntity<String> response = restTemplate.exchange(
                 "/tags",
                 HttpMethod.POST,
-                new HttpEntity<>(input),
+                new HttpEntity<>("existing"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -118,17 +113,14 @@ class TagControllerIntegrationTest {
         authenticateAs("admin", "admin");
         tagRepository.save(Tag.builder().tag("old").build());
 
-        TagDto input = TagDto.builder().tag("new").build();
-
-        ResponseEntity<TagDto> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                 "/tags/old",
                 HttpMethod.PUT,
-                new HttpEntity<>(input),
-                TagDto.class);
+                new HttpEntity<>("new"),
+                String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getTag()).isEqualTo("new");
+        assertThat(response.getBody()).isEqualTo("new");
         assertThat(tagRepository.existsByTag("new")).isTrue();
         assertThat(tagRepository.existsByTag("old")).isFalse();
     }

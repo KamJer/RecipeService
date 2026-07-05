@@ -20,6 +20,7 @@ public class Recipe {
 
     private String name;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)

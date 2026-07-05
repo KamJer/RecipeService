@@ -1,9 +1,14 @@
 package pl.kamjer.ShoppingListRecipeService.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -14,6 +19,7 @@ import pl.kamjer.ShoppingListRecipeService.repository.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
 @Service
@@ -24,6 +30,9 @@ public class RecipeService extends CustomService{
     private final IngredientRepository ingredientRepository;
     private final StepRepository stepRepository;
     private final TagRepository tagRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public RecipeService(UserClient secClient, ObjectMapper objectMapper, RecipeRepository recipeRepository, IngredientRepository ingredientRepository, StepRepository stepRepository, TagRepository tagRepository) {
         super(secClient, objectMapper);
@@ -116,30 +125,22 @@ public class RecipeService extends CustomService{
     }
 
     @Transactional
-    public Page<Recipe> getRecipeByProducts(List<String> products, int maxMissing, Pageable pageable) {
-        return Optional.ofNullable(getUserFromAuth())
-                .map(user -> recipeRepository.findCookableRecipes(products, maxMissing, user.getUserName(), pageable))
-                .orElseGet(() -> recipeRepository.findCookableRecipes(products, maxMissing, null, pageable));
-    }
-
-    @Transactional
-    public Page<Recipe> getRecipeByProductsRequired(List<String> products, Pageable pageable) {
-        return Optional.ofNullable(getUserFromAuth())
-                .map(user -> recipeRepository.findRecipesContainingAllIngredients(products, user.getUserName(), pageable))
-                .orElseGet(() -> recipeRepository.findRecipesContainingAllIngredients(products, null, pageable));
-    }
-
-    @Transactional
     public Page<Recipe> getRecipeByQuery(String query, Pageable pageable) {
-        return Optional.ofNullable(getUserFromAuth())
-                .map(user -> recipeRepository.searchByNameBoolean(query, user.getUserName(), pageable))
-                .orElseGet(() -> recipeRepository.searchByNameBoolean(query, null, pageable));
+        String sanitized = sanitizeBooleanModeTerm(query);
+        try {
+            return Optional.ofNullable(getUserFromAuth())
+                    .map(user -> recipeRepository.searchByNameBoolean(sanitized, user.getUserName(), pageable))
+                    .orElseGet(() -> recipeRepository.searchByNameBoolean(sanitized, null, pageable));
+        } catch (RuntimeException e) {
+            log.warn("BOOLEAN MODE name search failed for query '{}': {}", query, e.getMessage());
+            throw new WrongRecipeElementException("Invalid search query. Please avoid special characters like *, +, -, etc.");
+        }
     }
 
     @Transactional
-    public Page<Recipe> getRecipeByTags(Set<Tag> tags, Pageable pageable) {
+    public Page<Recipe> getRecipeByTags(Set<String> tags, Pageable pageable) {
         Set<String> normalizedTags = tags.stream()
-                .map(t -> t.getTag().trim())
+                .map(String::trim)
                 .collect(Collectors.toSet());
         return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByAnyTag(normalizedTags, user.getUserName(), pageable))
@@ -147,9 +148,9 @@ public class RecipeService extends CustomService{
     }
 
     @Transactional
-    public Page<Recipe> getRecipeByTagsRequired(Set<Tag> tags, Pageable pageable) {
+    public Page<Recipe> getRecipeByTagsRequired(Set<String> tags, Pageable pageable) {
         Set<String> normalizedTags = tags.stream()
-                .map(t -> t.getTag().trim())
+                .map(String::trim)
                 .collect(Collectors.toSet());
         return Optional.ofNullable(getUserFromAuth())
                 .map(user -> recipeRepository.findByAllTags(normalizedTags, normalizedTags.size(), user.getUserName(), pageable))
@@ -163,10 +164,103 @@ public class RecipeService extends CustomService{
                 .orElseGet(() -> recipeRepository.findAllRecipe(null, pageable));
     }
 
+    public Optional<Recipe> getRecipeByExactName(String name) {
+        return recipeRepository.findFirstByNameIgnoreCase(name);
+    }
+
     @Transactional
     public Page<Recipe> getRecipeByUser(Pageable pageable) throws IllegalAccessException {
         User user = Optional.ofNullable(getUserFromAuth()).orElseThrow(IllegalAccessException::new);
         return recipeRepository.findByUserName(user.getUserName(), pageable);
+    }
+
+    @Transactional
+    public Page<Recipe> getRecipesByIngredientNames(List<String> names, Pageable pageable) {
+        if (names == null || names.isEmpty()) {
+            return Page.empty();
+        }
+
+        String userName = Optional.ofNullable(getUserFromAuth())
+                .map(User::getUserName)
+                .orElse(null);
+
+        String matchClauses = IntStream.range(0, names.size())
+                .mapToObj(i -> "MATCH(i.name) AGAINST (:term" + i + " IN BOOLEAN MODE)")
+                .collect(Collectors.joining(" OR "));
+
+        String havingClauses = IntStream.range(0, names.size())
+                .mapToObj(i -> "SUM(CASE WHEN MATCH(i.name) AGAINST (:term" + i + " IN BOOLEAN MODE) THEN 1 ELSE 0 END) > 0")
+                .collect(Collectors.joining(" AND "));
+
+        String baseSql = """
+                FROM recipe r
+                JOIN ingredient i ON i.recipe_id = r.recipe_id
+                WHERE (r.published = true OR (:userName IS NOT NULL AND r.user_name = :userName))
+                  AND (%s)
+                GROUP BY r.recipe_id
+                HAVING %s
+                """.formatted(matchClauses, havingClauses);
+
+        String countSql = "SELECT COUNT(*) FROM (SELECT r.recipe_id " + baseSql + ") AS count_query";
+        String dataSql = "SELECT r.* " + baseSql + " ORDER BY r.recipe_id";
+
+        String[] sanitizedTerms = names.stream()
+                .map(this::sanitizeBooleanModeTerm)
+                .toArray(String[]::new);
+
+        Query countQuery = entityManager.createNativeQuery(countSql);
+        Query dataQuery = entityManager.createNativeQuery(dataSql, Recipe.class);
+
+        try {
+            for (int i = 0; i < sanitizedTerms.length; i++) {
+                countQuery.setParameter("term" + i, sanitizedTerms[i]);
+                dataQuery.setParameter("term" + i, sanitizedTerms[i]);
+            }
+            countQuery.setParameter("userName", userName);
+            dataQuery.setParameter("userName", userName);
+
+            long total = ((Number) countQuery.getSingleResult()).longValue();
+
+            dataQuery.setFirstResult((int) pageable.getOffset());
+            dataQuery.setMaxResults(pageable.getPageSize());
+
+            @SuppressWarnings("unchecked")
+            List<Recipe> recipes = dataQuery.getResultList();
+
+            return new PageImpl<>(recipes, pageable, total);
+        } catch (RuntimeException e) {
+            log.warn("BOOLEAN MODE ingredient search failed for terms '{}': {}", names, e.getMessage());
+            throw new WrongRecipeElementException("Invalid search query. Please avoid special characters like *, +, -, etc.");
+        }
+    }
+
+    /**
+     * Escapes MySQL FULLTEXT BOOLEAN MODE operators and appends "*" suffix.
+     * This prevents syntax errors from user input like "*", "+", "-" while letting
+     * partial terms (e.g. "mąk") match derived words ("mąka", "mąki", "mąkowy").
+     */
+    private String sanitizeBooleanModeTerm(String input) {
+        if (input == null || input.isBlank()) {
+            return input;
+        }
+        String escaped = input
+                .replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("?", "\\?")
+                .replace("+", "\\+")
+                .replace("-", "\\-")
+                .replace("@", "\\@")
+                .replace("<", "\\<")
+                .replace(">", "\\>")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("~", "\\~")
+                .replace("\"", "\\\"")
+                .trim();
+        if (escaped.isEmpty()) {
+            return escaped;
+        }
+        return escaped + "*";
     }
 
     private void validateTags(Recipe recipe) throws WrongRecipeElementException {

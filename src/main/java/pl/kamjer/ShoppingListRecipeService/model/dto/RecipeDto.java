@@ -17,14 +17,12 @@ public class RecipeDto {
     private Long recipeId;
     @NotBlank @Size(max = 255)
     private String name;
-    @Size(max = 255)
     private String description;
     @Valid
     private List<IngredientDto> ingredients;
     @Valid
     private List<StepDto> steps;
-    @Valid
-    private List<TagDto> tags;
+    private List<String> tags;
     private String userName;
     @Size(max = 255)
     private String source;

@@ -85,7 +85,7 @@ class RecipeControllerIntegrationTest {
                         StepDto.builder().stepNumber(1).instruction("Boil pasta").build(),
                         StepDto.builder().stepNumber(2).instruction("Mix eggs").build()
                 ))
-                .tags(List.of(TagDto.builder().tag("italian").build()))
+                .tags(List.of("italian"))
                 .published(true)
                 .build();
 
@@ -116,7 +116,7 @@ class RecipeControllerIntegrationTest {
     void putRecipe_withMissingTags_returns409() {
         RecipeDto dto = RecipeDto.builder()
                 .name("Test")
-                .tags(List.of(TagDto.builder().tag("nonexistent").build()))
+                .tags(List.of("nonexistent"))
                 .build();
 
         ResponseEntity<String> response = restTemplate.exchange(
@@ -140,7 +140,7 @@ class RecipeControllerIntegrationTest {
                 .description("New description")
                 .ingredients(List.of(IngredientDto.builder().name("Salt").build()))
                 .steps(List.of(StepDto.builder().stepNumber(1).instruction("Season").build()))
-                .tags(List.of(TagDto.builder().tag("italian").build()))
+                .tags(List.of("italian"))
                 .published(true)
                 .build();
 
@@ -223,16 +223,16 @@ class RecipeControllerIntegrationTest {
     void getRecipeByTags_returnsMatchingRecipes() throws Exception {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
-                        .name("Italian Dish").tags(List.of(TagDto.builder().tag("italian").build())).build()),
+                        .name("Italian Dish").tags(List.of("italian")).build()),
                 RecipeDto.class);
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
-                        .name("Dessert").tags(List.of(TagDto.builder().tag("dessert").build())).build()),
+                        .name("Dessert").tags(List.of("dessert")).build()),
                 RecipeDto.class);
 
         ResponseEntity<String> raw = restTemplate.exchange(
                 "/recipe/tag?page=0&size=10", HttpMethod.POST,
-                new HttpEntity<>(Set.of(TagDto.builder().tag("italian").build())),
+                new HttpEntity<>(Set.of("italian")),
                 String.class);
         JsonNode root = objectMapper.readTree(raw.getBody());
 
@@ -246,22 +246,19 @@ class RecipeControllerIntegrationTest {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
                         .name("Italian Dessert")
-                        .tags(List.of(TagDto.builder().tag("italian").build(), TagDto.builder().tag("dessert").build()))
+                        .tags(List.of("italian", "dessert"))
                         .build()),
                 RecipeDto.class);
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
                         .name("Only Italian")
-                        .tags(List.of(TagDto.builder().tag("italian").build()))
+                        .tags(List.of("italian"))
                         .build()),
                 RecipeDto.class);
 
         ResponseEntity<String> raw = restTemplate.exchange(
                 "/recipe/tag/required?page=0&size=10", HttpMethod.POST,
-                new HttpEntity<>(Set.of(
-                        TagDto.builder().tag("italian").build(),
-                        TagDto.builder().tag("dessert").build()
-                )),
+                new HttpEntity<>(Set.of("italian", "dessert")),
                 String.class);
         JsonNode root = objectMapper.readTree(raw.getBody());
 
@@ -275,16 +272,13 @@ class RecipeControllerIntegrationTest {
         restTemplate.exchange("/recipe", HttpMethod.PUT,
                 new HttpEntity<>(RecipeDto.builder()
                         .name("Italian Dish")
-                        .tags(List.of(TagDto.builder().tag("italian").build()))
+                        .tags(List.of("italian"))
                         .build()),
                 RecipeDto.class);
 
         ResponseEntity<String> raw = restTemplate.exchange(
                 "/recipe/tag/required?page=0&size=10", HttpMethod.POST,
-                new HttpEntity<>(Set.of(
-                        TagDto.builder().tag("italian").build(),
-                        TagDto.builder().tag("dessert").build()
-                )),
+                new HttpEntity<>(Set.of("italian", "dessert")),
                 String.class);
         JsonNode root = objectMapper.readTree(raw.getBody());
 

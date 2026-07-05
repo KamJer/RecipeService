@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import pl.kamjer.ShoppingListRecipeService.exceptions.WrongRecipeElementException;
 import pl.kamjer.ShoppingListRecipeService.model.Tag;
-import pl.kamjer.ShoppingListRecipeService.model.dto.TagDto;
 import pl.kamjer.ShoppingListRecipeService.repository.TagRepository;
 
 import java.util.HashSet;
@@ -19,20 +18,20 @@ public class TagService{
 
     private TagRepository tagRepository;
 
-    public Set<TagDto> getAllTags() {
+    public Set<String> getAllTags() {
         return tagRepository.findAll().stream()
-                .map(tag -> TagDto.builder().tag(tag.getTag()).build())
+                .map(Tag::getTag)
                 .collect(Collectors.toCollection(HashSet::new));
     }
 
     @Transactional
-    public TagDto createTag(TagDto tagDto) {
-        String tagName = tagDto.getTag().trim();
-        if (tagRepository.existsByTag(tagName)) {
-            throw new WrongRecipeElementException("Tag '" + tagName + "' already exists");
+    public String createTag(String tagName) {
+        String trimmed = tagName.trim();
+        if (tagRepository.existsByTag(trimmed)) {
+            throw new WrongRecipeElementException("Tag '" + trimmed + "' already exists");
         }
-        Tag saved = tagRepository.save(Tag.builder().tag(tagName).build());
-        return TagDto.builder().tag(saved.getTag()).build();
+        Tag saved = tagRepository.save(Tag.builder().tag(trimmed).build());
+        return saved.getTag();
     }
 
     @Transactional
@@ -44,15 +43,15 @@ public class TagService{
     }
 
     @Transactional
-    public TagDto updateTag(String oldTagName, TagDto newTagDto) {
-        String newTagName = newTagDto.getTag().trim();
+    public String updateTag(String oldTagName, String newTagName) {
+        String trimmed = newTagName.trim();
         if (!tagRepository.existsById(oldTagName)) {
             throw new NoSuchElementException("Tag '" + oldTagName + "' not found");
         }
-        if (!oldTagName.equals(newTagName) && !oldTagName.equalsIgnoreCase(newTagName) && tagRepository.existsByTag(newTagName)) {
-            throw new WrongRecipeElementException("Tag '" + newTagName + "' already exists");
+        if (!oldTagName.equals(trimmed) && !oldTagName.equalsIgnoreCase(trimmed) && tagRepository.existsByTag(trimmed)) {
+            throw new WrongRecipeElementException("Tag '" + trimmed + "' already exists");
         }
-        tagRepository.updateTagName(oldTagName, newTagName);
-        return TagDto.builder().tag(newTagName).build();
+        tagRepository.updateTagName(oldTagName, trimmed);
+        return trimmed;
     }
 }
