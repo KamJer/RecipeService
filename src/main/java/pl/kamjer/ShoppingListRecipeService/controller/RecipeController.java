@@ -70,7 +70,7 @@ public class RecipeController {
     public ResponseEntity<Boolean> postRecipe(@Valid @RequestBody RecipeDto recipeDto) throws IllegalAccessException, WrongRecipeElementException {
         log.info("POST /recipe - updating recipe id={}", recipeDto.getRecipeId());
         recipeService.updateRecipe(toRecipe(recipeDto));
-        return ResponseEntity.ok(true); 
+        return ResponseEntity.ok(true);
     }
 
     @DeleteMapping(path = "/{recipeId}")
