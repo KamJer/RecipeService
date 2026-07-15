@@ -77,8 +77,8 @@ Run the security service (typically on port **4443**) before relying on authenti
 | Profile | Main config | Behavior |
 |---------|-------------|----------|
 | Default | `application.properties` | Local defaults; datasource credentials should be supplied (see secrets) |
-| `dev` | `application-dev.properties` | Imports `application-secret-dev.properties`, Flyway on, JPA `ddl-auto=validate` |
-| `prod` | `application-prod.properties` | Imports `application-secret-prod.properties`, Flyway on, JPA `ddl-auto=none` |
+| `dev` | `application-dev.properties` | Flyway on, JPA `ddl-auto=validate` |
+| `prod` | `application-prod.properties` | Flyway on, JPA `ddl-auto=none` |
 
 Activate a profile:
 
@@ -90,23 +90,19 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 java -jar target/ShoppingListRecipeService-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
-### Secret properties (for `dev` / `prod`)
-
-Files `application-secret-dev.properties` and `application-secret-prod.properties` are **gitignored**. Create them under `src/main/resources/` and define at least your datasource (and any other overrides), for example:
-
-- `spring.datasource.username`
-- `spring.datasource.password`
-
-**Security:** do not commit real credentials; use environment-specific values.
+| Variable | Description |
+|----------|-------------|
+| `DB_USERNAME` | MariaDB username |
+| `DB_PASSWORD` | MariaDB password |
 
 ### Default application settings (`application.properties`)
 
 | Setting | Default | Notes |
-|---------|---------|--------|
+|---------|---------|-------|
 | `spring.application.name` | `ShoppingListRecipeService` | |
 | `server.port` | `6443` | |
 | `spring.datasource.url` | `jdbc:mariadb://localhost:3306/recipe_db` | Adjust per environment |
-| `user.service.base-url` | `http://localhost:4443/user` | Must point at the security service’s user API |
+| `user.service.base-url` | `http://localhost:4443/user` | Must point at the security service's user API |
 
 ---
 
@@ -121,9 +117,21 @@ Ensure the target database exists and matches the configured URL before starting
 
 ## Build and run
 
+You need **JDK 21**, **Maven 3.8+**, and a running **MariaDB** instance with database `recipe_db`.
+
 ```bash
-mvn clean package -DskipTests
+# Set required environment variables
+export DB_USERNAME=your_db_user
+export DB_PASSWORD=your_db_password
+
+# Build
+mvn clean package
+
+# Run with dev profile
 java -jar target/ShoppingListRecipeService-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
+
+# Run with prod profile
+java -jar target/ShoppingListRecipeService-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
 Development:
@@ -138,33 +146,164 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 Base path: **`/recipe`** and **`/tags`** (no global servlet context path in default config).
 
+Authentication is via `Authorization: Bearer <JWT>` header. Write endpoints (PUT, POST, DELETE) and `GET /recipe/user` require a valid JWT. All other GET endpoints are public.
+
 ### Recipes (`/recipe`)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `PUT` | `/recipe` | Per `SecurityConfig` | Insert recipe (body: `RecipeDto`) |
-| `POST` | `/recipe` | Per `SecurityConfig` | Update recipe |
-| `DELETE` | `/recipe/{recipeId}` | Per `SecurityConfig` | Delete recipe |
-| `GET` | `/recipe/id/{id}` | Public | Recipe by id |
-| `POST` | `/recipe/products` | Public | Recipes matching products (`RecipeRequestDto`, pageable) |
-| `GET` | `/recipe/name/{query}` | Public | Search by name (pageable) |
-| `POST` | `/recipe/products/required` | Public | Recipes requiring given products (pageable) |
-| `POST` | `/recipe/tag` | Public | Recipes by tags (pageable) |
-| `POST` | `/recipe/tag/required` | Public | Recipes requiring all given tags (pageable) |
-| `GET` | `/recipe/user` | **Authenticated** | Paged recipes for the current user |
-| `GET` | `/recipe` | Public | All recipes (pageable) |
+| Method | Path | Auth | Request | Response | Description |
+|--------|------|------|---------|----------|-------------|
+| `PUT` | `/recipe` | JWT | `RecipeDto` JSON | `RecipeDto` | Insert a new recipe |
+| `POST` | `/recipe` | JWT | `RecipeDto` JSON | `RecipeDto` | Update an existing recipe |
+| `DELETE` | `/recipe/{recipeId}` | JWT | — | `200 OK` | Delete recipe (owner only) |
+| `GET` | `/recipe/id/{id}` | Public | — | `RecipeDto` | Get recipe by id |
+| `GET` | `/recipe/name/{query}` | Public | — | `Page<RecipeDto>` | Search by name (pageable) |
+| `POST` | `/recipe/products` | Public | `RecipeRequestDto` | `Page<RecipeDto>` | Recipes matching given products (paged) |
+| `POST` | `/recipe/products/required` | Public | `RecipeRequestDto` | `Page<RecipeDto>` | Recipes requiring **all** given products (paged) |
+| `POST` | `/recipe/tag` | Public | list of tag names | `Page<RecipeDto>` | Recipes matching **any** given tag (paged) |
+| `POST` | `/recipe/tag/required` | Public | list of tag names | `Page<RecipeDto>` | Recipes requiring **all** given tags (paged) |
+| `GET` | `/recipe/user` | **JWT** | — | `Page<RecipeDto>` | Paged recipes owned by the authenticated user |
+| `GET` | `/recipe` | Public | — | `Page<RecipeDto>` | All recipes (paged) |
 
 ### Tags (`/tags`)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/tags` | Public | All tags |
+| Method | Path | Auth | Response | Description |
+|--------|------|------|----------|-------------|
+| `GET` | `/tags` | Public | `List<String>` | All available tags |
+
+### Data types – JSON schemas
+
+#### `RecipeDto`
+
+```json
+{
+  "recipeId": null,
+  "name": "Spaghetti Carbonara",
+  "description": "Klasyczny włoski przepis",
+  "ingredients": [
+    {
+      "ingredientId": null,
+      "name": "Makaron spaghetti",
+      "amount": "200",
+      "unit": "g"
+    },
+    {
+      "ingredientId": null,
+      "name": "Jajka",
+      "amount": "3",
+      "unit": "szt."
+    }
+  ],
+  "steps": [
+    {
+      "stepId": null,
+      "stepNumber": 1,
+      "description": "Ugotuj makaron al dente"
+    },
+    {
+      "stepId": null,
+      "stepNumber": 2,
+      "description": "Wymieszaj jajka z serem"
+    }
+  ],
+  "tags": ["włoskie", "makaron"],
+  "userName": null,
+  "source": "https://przepisy.pl/carbonara",
+  "published": true
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `recipeId` | number (nullable) | `null` for new recipes; set for updates |
+| `name` | string (max 255) | **Required.** Recipe name |
+| `description` | string (nullable) | Free‑text description |
+| `ingredients` | array of `IngredientDto` | List of ingredients |
+| `steps` | array of `StepDto` | Preparation steps |
+| `tags` | array of string | Tag names (created on the fly if new) |
+| `userName` | string (nullable) | Ignored on create — set from JWT |
+| `source` | string (max 255, nullable) | Optional URL or attribution |
+| `published` | boolean (nullable) | `true` = visible in public search |
+
+#### `IngredientDto`
+
+```json
+{
+  "ingredientId": null,
+  "name": "Makaron spaghetti",
+  "amount": "200",
+  "unit": "g"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ingredientId` | number (nullable) | `null` for new ingredients |
+| `name` | string | Ingredient name |
+| `amount` | string | Quantity as text (e.g. "200", "1", "do smaku") |
+| `unit` | string | Unit (e.g. "g", "ml", "szt.") |
+
+#### `StepDto`
+
+```json
+{
+  "stepId": null,
+  "stepNumber": 1,
+  "description": "Ugotuj makaron al dente"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stepId` | number (nullable) | `null` for new steps |
+| `stepNumber` | number | Order of the step (1‑based) |
+| `description` | string | Step instruction |
+
+#### `RecipeRequestDto` (used in product searches)
+
+```json
+{
+  "products": ["jajka", "makaron"],
+  "maxMissing": 1,
+  "page": 0,
+  "size": 20
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `products` | array of string | Product names to match against ingredient names |
+| `maxMissing` | number (optional) | Tolerance — how many products may be missing (default `0`) |
+| `page` | number | Page index (0‑based, default `0`) |
+| `size` | number | Page size (default `20`) |
+
+### Pagination
+
+All `GET` endpoints that return multiple recipes use Spring Data pagination. Add query parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `page` | `0` | Page index (0‑based) |
+| `size` | `20` | Number of items per page |
+| `sort` | — | Sort property, e.g. `sort=name,asc` |
+
+**Response format:**
+```json
+{
+  "content": [ ... RecipeDto ... ],
+  "totalElements": 42,
+  "totalPages": 3,
+  "number": 0,
+  "size": 20,
+  "first": true,
+  "last": false
+}
+```
 
 ### Security notes
 
 - **CSRF is disabled** (typical for stateless JWT APIs).
 - **`GET /recipe/user`** requires an authenticated principal; the service validates the JWT with the **Shopping Security Service** using `user.service.base-url`.
-- Other **GET** requests are permitted without authentication in the current configuration; review `SecurityConfig` if you need to lock down writes or additional routes.
+- Other **GET** requests are permitted without authentication; review `SecurityConfig` if you need to lock down writes or additional routes.
 
 ---
 

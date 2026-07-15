@@ -32,8 +32,7 @@ build/
 ### VS Code ###
 .vscode/
 
-src/main/resources/application-secret-dev.properties
-src/main/resources/application-secret-prod.properties
+src/main/resources/application-secret*.properties
 
 # Analiza problemów z tagami
 tagi_problemy.csv
